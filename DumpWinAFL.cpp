@@ -29,7 +29,7 @@ TCHAR* GetWC_(const char* c)
 	return wc;
 }
 
-int pipe_check(int res, std::wofstream& outfile);
+int pipe_check(DWORD res, std::wofstream& outfile);
 
 int main(int argc, char* argv[])
 {
@@ -100,12 +100,12 @@ int main(int argc, char* argv[])
 	outfile << "wait " << res << std::endl;
 
 
-	pipe_check(res, outfile);
+	pipe_check(result, outfile);
 	outfile.close();
 	return 0;
 }
 
-int pipe_check(int res, std::wofstream& outfile) {
+int pipe_check(DWORD res, std::wofstream& outfile) {
 	int calibrate = 0;
 	bool bb = false;
 	DWORD Dummy;
