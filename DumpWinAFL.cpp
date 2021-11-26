@@ -18,6 +18,7 @@ TCHAR *b;
 TCHAR pipe_name[env_size];
 
 HANDLE hpipe;
+HANDLE g_hChildStd_OUT_Wr = NULL;
 
 TCHAR* GetWC_(const char* c)
 {
@@ -34,6 +35,7 @@ int main(int argc, char* argv[])
 {
 
 	STARTUPINFO si = { sizeof(si) };
+	si.hStdError = g_hChildStd_OUT_Wr;
 	PROCESS_INFORMATION pi;
 
 	TCHAR* prog_name = GetWC_(argv[1]);
@@ -47,14 +49,17 @@ int main(int argc, char* argv[])
 	GetEnvironmentVariable(TEXT("AFL_STATIC_CONFIG"), envbuff, env_size);
 	if (GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
 		printf("afl env static not found\n");
+#ifdef RELEASE
 		return -2;
+#endif // RELEASE
 	}
 	outfile << envbuff << std::endl;
 	fuzzid = wcstok(envbuff, L":", &b);
 
 	wcscpy_s(pipe_name, sizeof(L"\\\\.\\pipe\\afl_pipe_"), L"\\\\.\\pipe\\afl_pipe_");
+#ifdef RELEASE
 	wcscat_s(pipe_name, fuzzid);
-
+#endif // RELEASE
 	outfile << pipe_name << std::endl;
 
 	hpipe = CreateFile(
@@ -63,10 +68,12 @@ int main(int argc, char* argv[])
 
 	if (hpipe == INVALID_HANDLE_VALUE) {
 		printf("winafl pipe not found");
+#ifdef RELEASE
 		return -1;
+#endif // RELEASE
 	}
 
-	int res = 0;
+	DWORD res = 0;
 
 	if (!CreateProcess(NULL, prog_name,
 		NULL, NULL,	FALSE, 0, NULL,	NULL, &si, &pi))
@@ -78,14 +85,16 @@ int main(int argc, char* argv[])
 	printf("ok");
 	outfile << prog_name << " work " << std::endl;
 	res = WaitForSingleObject(pi.hProcess, INFINITE);
-	int result = -1;
+	DWORD result = -1;
 	if (!GetExitCodeProcess(pi.hProcess, (LPDWORD)& result))
 	{
 		outfile <<"GetExitCodeProcess() failed " << GetLastError() << std::endl;
 	}
 	else
 		outfile << "The exit code for " << (LPTSTR)(prog_name) << " " << result << std::endl;
+	std::cout << result;
 	// Close process and thread handles. 
+	CloseHandle(g_hChildStd_OUT_Wr);
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
 	outfile << "wait " << res << std::endl;
