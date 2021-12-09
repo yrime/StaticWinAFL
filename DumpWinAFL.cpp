@@ -7,6 +7,7 @@
 #include "windows.h"
 
 #define env_size 100
+#define MAP_SIZE 65536
 
 typedef wchar_t TCHAR;
 
@@ -16,6 +17,7 @@ TCHAR* fuzzid;// [] = L"234";
 TCHAR *b;
 
 TCHAR pipe_name[env_size];
+TCHAR shm[env_size];
 
 HANDLE hpipe;
 HANDLE g_hChildStd_OUT_Wr = NULL;
@@ -43,23 +45,23 @@ int main(int argc, char* argv[])
 
 //	TCHAR* prog_name = GetWC_("\"D:/ПРОЕКТЫ/java-fuzz/winafl/winafl-master/build/bin/Debug/test.exe .cur_input \"");
 
-	std::wofstream outfile("testlogfork.txt");
+	std::wofstream outfile("testlogfork.txt", std::ios::app);
 	outfile << "55 " << prog_name << " --- " << prog_arg<< std::endl;
     std::cout << "Hello!\n";
+	//SetEnvironmentVariable(TEXT("PREMIERE_AFL"), L"1");
 	GetEnvironmentVariable(TEXT("AFL_STATIC_CONFIG"), envbuff, env_size);
 	if (GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
 		printf("afl env static not found\n");
-#ifdef RELEASE
 		return -2;
-#endif // RELEASE
 	}
 	outfile << envbuff << std::endl;
 	fuzzid = wcstok(envbuff, L":", &b);
 
 	wcscpy_s(pipe_name, sizeof(L"\\\\.\\pipe\\afl_pipe_"), L"\\\\.\\pipe\\afl_pipe_");
-#ifdef RELEASE
+	wcscpy_s(shm, sizeof(L"afl_shm_"), L"afl_shm_");
+	outfile << "release" << std::endl;
 	wcscat_s(pipe_name, fuzzid);
-#endif // RELEASE
+	wcscat_s(shm, fuzzid);
 	outfile << pipe_name << std::endl;
 
 	hpipe = CreateFile(
@@ -82,7 +84,6 @@ int main(int argc, char* argv[])
 		outfile << prog_name << " wait create pr " << GetLastError() << std::endl;
 		return -1;
 	}
-	printf("ok");
 	outfile << prog_name << " work " << std::endl;
 	res = WaitForSingleObject(pi.hProcess, INFINITE);
 	DWORD result = -1;
@@ -97,11 +98,12 @@ int main(int argc, char* argv[])
 	CloseHandle(g_hChildStd_OUT_Wr);
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
-	outfile << "wait " << res << std::endl;
+	outfile << "wait " << result << std::endl;
 
 
 	pipe_check(result, outfile);
 	outfile.close();
+
 	return 0;
 }
 
@@ -125,7 +127,7 @@ int pipe_check(DWORD res, std::wofstream& outfile) {
 			WriteFile(hpipe, &c, 1, &Dummy, NULL);
 		}
 		ReadFile(hpipe, &Command, 1, &Dummy, NULL);
-		outfile << Command << std::endl;
+		outfile << Command << " " << res<< std::endl;
 
 		if (Command != 'F') {
 			if (Command == 'Q') {
@@ -150,6 +152,6 @@ int pipe_check(DWORD res, std::wofstream& outfile) {
 		}
 
 		//		break;
-	} while (calibrate <= 8);
+	} while (calibrate <= 40); //40 c'est magic. sans question!
 	return 0;
 }
