@@ -6,6 +6,8 @@
 #include <fstream>
 #include "windows.h"
 
+//#define RELEASE
+
 #define env_size 100
 #define MAP_SIZE 65536
 
@@ -35,9 +37,19 @@ int pipe_check(DWORD res, std::wofstream& outfile);
 
 int main(int argc, char* argv[])
 {
-
+	SECURITY_ATTRIBUTES sa;
+	sa.nLength = sizeof(sa);
+	sa.lpSecurityDescriptor = NULL;
+	sa.bInheritHandle = TRUE;
+	HANDLE hfile = CreateFile(L"cmdOutput.txt", FILE_APPEND_DATA,
+		FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_ALWAYS, 
+		FILE_ATTRIBUTE_NORMAL, NULL);
 	STARTUPINFO si = { sizeof(si) };
+	g_hChildStd_OUT_Wr = hfile;
+	si.hStdInput = NULL;
+	si.dwFlags |= STARTF_USESTDHANDLES;
 	si.hStdError = g_hChildStd_OUT_Wr;
+	si.hStdOutput = g_hChildStd_OUT_Wr;
 	PROCESS_INFORMATION pi;
 
 	TCHAR* prog_name = GetWC_(argv[1]);
@@ -70,9 +82,9 @@ int main(int argc, char* argv[])
 
 	if (hpipe == INVALID_HANDLE_VALUE) {
 		printf("winafl pipe not found");
-#ifdef RELEASE
-		return -1;
-#endif // RELEASE
+//#ifdef RELEASE
+//		return -1;
+//#endif // RELEASE
 	}
 
 	DWORD res = 0;
@@ -85,7 +97,9 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 	outfile << prog_name << " work " << std::endl;
+	
 	res = WaitForSingleObject(pi.hProcess, INFINITE);
+	//outfile << "output from process: " << (TCHAR*)(g_hChildStd_OUT_Wr) << std::endl;
 	DWORD result = -1;
 	if (!GetExitCodeProcess(pi.hProcess, (LPDWORD)& result))
 	{
@@ -98,6 +112,7 @@ int main(int argc, char* argv[])
 	CloseHandle(g_hChildStd_OUT_Wr);
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);
+	CloseHandle(hfile);
 	outfile << "wait " << result << std::endl;
 
 
