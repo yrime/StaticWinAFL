@@ -85,9 +85,9 @@ int main(int argc, char* argv[])
 
 	if (hpipe == INVALID_HANDLE_VALUE) {
 		printf("winafl pipe not found");
-//#ifdef RELEASE
-//		return -1;
-//#endif // RELEASE
+#ifdef RELEASE
+		return -1;
+#endif // RELEASE
 	}
 
 	DWORD res = 0;
