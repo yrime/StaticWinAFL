@@ -52,7 +52,10 @@ int main(int argc, char* argv[])
 	si.hStdOutput = g_hChildStd_OUT_Wr;
 	PROCESS_INFORMATION pi;
 
-	TCHAR* prog_name = GetWC_(argv[1]);
+	//TCHAR* prog_name = GetWC_(argv[1]);
+	WCHAR* prog_name = (WCHAR*)malloc((strlen(argv[1]) + 1) * sizeof(WCHAR));
+	prog_name[0] = L'\0';
+	wcscat(prog_name, GetWC_(argv[1]));
 	TCHAR prog_arg[env_size];
 
 //	TCHAR* prog_name = GetWC_("\"D:/ПРОЕКТЫ/java-fuzz/winafl/winafl-master/build/bin/Debug/test.exe .cur_input \"");
@@ -90,7 +93,7 @@ int main(int argc, char* argv[])
 	DWORD res = 0;
 
 	if (!CreateProcess(NULL, prog_name,
-		NULL, NULL,	FALSE, 0, NULL,	NULL, &si, &pi))
+		NULL, NULL,	TRUE, CREATE_NO_WINDOW, NULL,	NULL, &si, &pi))
 	{
 		printf("get lasterr %d\n", GetLastError());
 		outfile << prog_name << " wait create pr " << GetLastError() << std::endl;
