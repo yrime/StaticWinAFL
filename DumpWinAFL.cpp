@@ -24,6 +24,37 @@ TCHAR shm[env_size];
 HANDLE hpipe;
 HANDLE g_hChildStd_OUT_Wr = NULL;
 
+DWORD webStart(std::wofstream& outfile) {
+	TCHAR envbuff[1];
+
+//	GetEnvironmentVariable(TEXT("PREMIERE_AFL"), envbuff, 1);
+//	if (GetLastError() != ERROR_ENVVAR_NOT_FOUND) {
+//		printf("PREMIERE_AFL env static not found\n");
+//		return 0;
+//	}
+//	Sleep(10000);
+//	SetEnvironmentVariable(TEXT("PREMIERE_AFL"), L"1");
+	STARTUPINFO si_c = { sizeof(si_c) };
+	//g_hChildStd_OUT_Wr = hfile;
+	si_c.hStdInput = NULL;
+	//si_c.dwFlags |= STARTF_USESTDHANDLES;
+	//si_c.hStdError = g_hChildStd_OUT_Wr;
+	//si_c.hStdOutput = g_hChildStd_OUT_Wr;
+	PROCESS_INFORMATION pi_c;
+	outfile << " in supprocess\n" << GetLastError() << std::endl;
+	WCHAR* prog_name = (WCHAR*)malloc((strlen("java -javaagent:jAsmAgent-1.0-jar-with-dependencies.jar -jar web.jar") + 1) * sizeof(WCHAR));
+	if (!CreateProcess(NULL, prog_name,
+		NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si_c, &pi_c))
+	{
+		printf("get lasterr %d\n", GetLastError());
+		outfile << "supprocess err\n" << GetLastError() << std::endl;
+		return -1;
+	}
+	outfile << "supprocess start\n" << GetLastError() << std::endl;
+	
+	return 0;
+}
+
 TCHAR* GetWC_(const char* c)
 {
 	const size_t cSize = strlen(c) + 1;
@@ -91,47 +122,52 @@ int main(int argc, char* argv[])
 	}
 
 	DWORD res = 0;
+	int calibrate = 0;
+	do {
+		++calibrate;
+		if (!CreateProcess(NULL, prog_name,
+			NULL, NULL,	TRUE, CREATE_NO_WINDOW, NULL,	NULL, &si, &pi))
+		{
+			printf("get lasterr %d\n", GetLastError());
+			outfile << prog_name << " wait create pr " << GetLastError() << std::endl;
+			return -1;
+		}
+		outfile << prog_name << " work " << std::endl;
+		
 
-	if (!CreateProcess(NULL, prog_name,
-		NULL, NULL,	TRUE, CREATE_NO_WINDOW, NULL,	NULL, &si, &pi))
-	{
-		printf("get lasterr %d\n", GetLastError());
-		outfile << prog_name << " wait create pr " << GetLastError() << std::endl;
-		return -1;
-	}
-	outfile << prog_name << " work " << std::endl;
-	
-	res = WaitForSingleObject(pi.hProcess, INFINITE);
-	//outfile << "output from process: " << (TCHAR*)(g_hChildStd_OUT_Wr) << std::endl;
-	DWORD result = -1;
-	if (!GetExitCodeProcess(pi.hProcess, (LPDWORD)& result))
-	{
-		outfile <<"GetExitCodeProcess() failed " << GetLastError() << std::endl;
-	}
-	else
-		outfile << "The exit code for " << (LPTSTR)(prog_name) << " " << result << std::endl;
-	std::cout << result;
-	// Close process and thread handles. 
-	CloseHandle(g_hChildStd_OUT_Wr);
-	CloseHandle(pi.hProcess);
-	CloseHandle(pi.hThread);
-	CloseHandle(hfile);
-	outfile << "wait " << result << std::endl;
+		res = WaitForSingleObject(pi.hProcess, INFINITE);
+		webStart(outfile);
+		//outfile << "output from process: " << (TCHAR*)(g_hChildStd_OUT_Wr) << std::endl;
+		DWORD result = -1;
+		if (!GetExitCodeProcess(pi.hProcess, (LPDWORD)& result))
+		{
+			outfile <<"GetExitCodeProcess() failed " << GetLastError() << std::endl;
+		}
+		else
+			outfile << "The exit code for " << (LPTSTR)(prog_name) << " " << result << std::endl;
+		std::cout << result;
+		// Close process and thread handles. 
+		CloseHandle(g_hChildStd_OUT_Wr);
+		CloseHandle(pi.hProcess);
+		CloseHandle(pi.hThread);
+		CloseHandle(hfile);
+		outfile << "wait " << result << std::endl;
 
 
-	pipe_check(result, outfile);
+		pipe_check(result, outfile);
+	} while (calibrate <= 40); //40 c'est magic. sans question!
 	outfile.close();
 
 	return 0;
 }
 
 int pipe_check(DWORD res, std::wofstream& outfile) {
-	int calibrate = 0;
+	//int calibrate = 0;
 	bool bb = false;
 	DWORD Dummy;
 	CHAR Command = 0;
-	do {
-		++calibrate;
+	//do {
+		//++calibrate;
 		if (hpipe == INVALID_HANDLE_VALUE) {
 			printf("winafl pipe not found");
 			return -1;
@@ -151,8 +187,8 @@ int pipe_check(DWORD res, std::wofstream& outfile) {
 			if (Command == 'Q') {
 				printf("Received the quit signal, exiting. \n");
 				outfile.close();
-
-				break;
+				return 0;
+				//break;
 			}
 			else {
 				printf("Received an unknow command from afl-fuzz, exiting (%.2x)\n", Command);
@@ -160,7 +196,7 @@ int pipe_check(DWORD res, std::wofstream& outfile) {
 			outfile.close();
 			return -1;
 		}
-		if (res == 0) {
+		if (res == 0 || res == 1 || res == 2) {
 			WriteFile(hpipe, "K", 1, &Dummy, NULL);
 		}
 		else {
@@ -170,6 +206,6 @@ int pipe_check(DWORD res, std::wofstream& outfile) {
 		}
 
 		//		break;
-	} while (calibrate <= 40); //40 c'est magic. sans question!
+	//} while (calibrate <= 40); //40 c'est magic. sans question!
 	return 0;
 }
