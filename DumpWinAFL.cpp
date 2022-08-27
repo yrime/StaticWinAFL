@@ -93,7 +93,7 @@ int main(int argc, char* argv[])
 
 	std::wofstream outfile("testlogfork.txt", std::ios::app);
 	outfile << "55 " << prog_name << " --- " << prog_arg<< std::endl;
-    std::cout << "Hello!\n";
+ //   std::cout << "Hello!\n";
 	//SetEnvironmentVariable(TEXT("PREMIERE_AFL"), L"1");
 	GetEnvironmentVariable(TEXT("AFL_STATIC_CONFIG"), envbuff, env_size);
 	if (GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
 		
 
 		res = WaitForSingleObject(pi.hProcess, INFINITE);
-		webStart(outfile);
+//		webStart(outfile);
 		//outfile << "output from process: " << (TCHAR*)(g_hChildStd_OUT_Wr) << std::endl;
 		DWORD result = -1;
 		if (!GetExitCodeProcess(pi.hProcess, (LPDWORD)& result))
