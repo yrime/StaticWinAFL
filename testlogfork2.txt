@@ -1,0 +1,20 @@
+67 aff OUT\.cur_input --- kk 
+afl env static not found
+
+67  --- kk 
+afl env static not found
+
+67 aff dddd --- kk 
+afl env static not found
+
+cur_input testpass
+argv[1] aff testpass
+67 aff testpass --- kk 
+cur_input testpass
+argv[1] aff testpass
+cur_input testpass
+argv[1] aff dgfdfgdfgdfgdfgdfg testpass fgdgdgdgdfgdgfdfgdg
+67 aff dgfdfgdfgdfgdfgdfg testpass fgdgdgdgdfgdgfdfgdg --- kk 
+cur_input testpass
+argv[1] aff dgfdfgdfgdfgdfgdfg OUT\.cur_input fgdgdgdgdfgdgfdfgdg
+cur_input testpass
