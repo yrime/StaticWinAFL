@@ -6,6 +6,9 @@
 #include <fstream>
 #include "windows.h"
 
+#include <atlstr.h>
+#include <sstream>
+
 //#define RELEASE
 
 #define env_size 100
@@ -24,36 +27,6 @@ TCHAR shm[env_size];
 HANDLE hpipe;
 HANDLE g_hChildStd_OUT_Wr = NULL;
 
-DWORD webStart(std::wofstream& outfile) {
-	TCHAR envbuff[1];
-
-//	GetEnvironmentVariable(TEXT("PREMIERE_AFL"), envbuff, 1);
-//	if (GetLastError() != ERROR_ENVVAR_NOT_FOUND) {
-//		printf("PREMIERE_AFL env static not found\n");
-//		return 0;
-//	}
-//	Sleep(10000);
-//	SetEnvironmentVariable(TEXT("PREMIERE_AFL"), L"1");
-	STARTUPINFO si_c = { sizeof(si_c) };
-	//g_hChildStd_OUT_Wr = hfile;
-	si_c.hStdInput = NULL;
-	//si_c.dwFlags |= STARTF_USESTDHANDLES;
-	//si_c.hStdError = g_hChildStd_OUT_Wr;
-	//si_c.hStdOutput = g_hChildStd_OUT_Wr;
-	PROCESS_INFORMATION pi_c;
-	outfile << " in supprocess\n" << GetLastError() << std::endl;
-	WCHAR* prog_name = (WCHAR*)malloc((strlen("java -javaagent:jAsmAgent-1.0-jar-with-dependencies.jar -jar web.jar") + 1) * sizeof(WCHAR));
-	if (!CreateProcess(NULL, prog_name,
-		NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si_c, &pi_c))
-	{
-		printf("get lasterr %d\n", GetLastError());
-		outfile << "supprocess err\n" << GetLastError() << std::endl;
-		return -1;
-	}
-	outfile << "supprocess start\n" << GetLastError() << std::endl;
-	
-	return 0;
-}
 
 TCHAR* GetWC_(const char* c)
 {
@@ -68,6 +41,7 @@ int pipe_check(DWORD res, std::wofstream& outfile);
 
 int main(int argc, char* argv[])
 {
+	//data for cmdOutput log file
 	SECURITY_ATTRIBUTES sa;
 	sa.nLength = sizeof(sa);
 	sa.lpSecurityDescriptor = NULL;
@@ -83,60 +57,79 @@ int main(int argc, char* argv[])
 	si.hStdOutput = g_hChildStd_OUT_Wr;
 	PROCESS_INFORMATION pi;
 
-	//TCHAR* prog_name = GetWC_(argv[1]);
-	WCHAR* prog_name = (WCHAR*)malloc((strlen(argv[1]) + 1) * sizeof(WCHAR));
-	prog_name[0] = L'\0';
-	wcscat(prog_name, GetWC_(argv[1]));
-	TCHAR prog_arg[env_size];
-
-//	TCHAR* prog_name = GetWC_("\"D:/ПРОЕКТЫ/java-fuzz/winafl/winafl-master/build/bin/Debug/test.exe .cur_input \"");
-
+	//open file for DumpWinAfl log
 	std::wofstream outfile("testlogfork.txt", std::ios::app);
-	outfile << "55 " << prog_name << " --- " << prog_arg<< std::endl;
- //   std::cout << "Hello!\n";
-	//SetEnvironmentVariable(TEXT("PREMIERE_AFL"), L"1");
+
+	//get name fuzzing programm from argv
+	WCHAR* prog_name;// = (WCHAR*)malloc((strlen(argv[1]) + 1) * sizeof(WCHAR));
+	//check if use cmd args
+	if (argc == 3) {
+		std::ifstream ifs("OUT\\.cur_input", std::ios::binary);
+		std::string content;
+		std::ostringstream ss;
+		if (ifs.is_open()) {
+			ss << ifs.rdbuf();
+			content = ss.str();
+			outfile << "OUT\\cur_input: " << content.c_str() << std::endl;
+		}
+		else {
+			outfile << "OUT\\cur_input dont open" << std::endl;
+		}
+		std::string argvstr(argv[1]);
+		std::string reg("OUT\\.cur_input");
+		argvstr.replace(argvstr.find(reg), reg.length(), content);
+		prog_name = StrDupW((std::wstring(argvstr.begin(), argvstr.end())).c_str());
+		outfile << "argument: " << prog_name << " --- " << std::endl;
+	}
+	else {
+		prog_name = (WCHAR*)malloc((strlen(argv[1]) + 1) * sizeof(WCHAR));
+		prog_name[0] = L'\0';
+		wcscat(prog_name, GetWC_(argv[1]));
+	}
+	
+	outfile << "DumpWinAfl: " << prog_name << " --- " << std::endl;
+
+	//get environment varible winafl
 	GetEnvironmentVariable(TEXT("AFL_STATIC_CONFIG"), envbuff, env_size);
 	if (GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
 		printf("afl env static not found\n");
 		return -2;
 	}
-	outfile << envbuff << std::endl;
+	outfile << "afl enironment variable: "<<envbuff << std::endl;
+	//afl env parse
 	fuzzid = wcstok(envbuff, L":", &b);
 
 	wcscpy_s(pipe_name, sizeof(L"\\\\.\\pipe\\afl_pipe_"), L"\\\\.\\pipe\\afl_pipe_");
 	wcscpy_s(shm, sizeof(L"afl_shm_"), L"afl_shm_");
-	outfile << "release" << std::endl;
+	
 	wcscat_s(pipe_name, fuzzid);
 	wcscat_s(shm, fuzzid);
-	outfile << pipe_name << std::endl;
-
+	outfile << "pipe name: " << pipe_name << std::endl;
+	//open afl pipe
 	hpipe = CreateFile(
 		pipe_name,   // pipe name
 		GENERIC_READ | GENERIC_WRITE,  0,  NULL,  OPEN_EXISTING,  0,  NULL);          // no template file
 
 	if (hpipe == INVALID_HANDLE_VALUE) {
 		printf("winafl pipe not found");
-#ifdef RELEASE
 		return -1;
-#endif // RELEASE
 	}
-
+	//winafl calibrate phase
 	DWORD res = 0;
 	int calibrate = 0;
 	do {
 		++calibrate;
+		//running fizzing programm
 		if (!CreateProcess(NULL, prog_name,
 			NULL, NULL,	TRUE, CREATE_NO_WINDOW, NULL,	NULL, &si, &pi))
 		{
 			printf("get lasterr %d\n", GetLastError());
-			outfile << prog_name << " wait create pr " << GetLastError() << std::endl;
+			outfile << prog_name << " wait create programm " << GetLastError() << std::endl;
 			return -1;
 		}
-		outfile << prog_name << " work " << std::endl;
+		outfile << "prgramm: " << prog_name << " --- is started " << std::endl;
 		
-
 		res = WaitForSingleObject(pi.hProcess, INFINITE);
-//		webStart(outfile);
 		//outfile << "output from process: " << (TCHAR*)(g_hChildStd_OUT_Wr) << std::endl;
 		DWORD result = -1;
 		if (!GetExitCodeProcess(pi.hProcess, (LPDWORD)& result))
@@ -153,14 +146,13 @@ int main(int argc, char* argv[])
 		CloseHandle(hfile);
 		outfile << "wait " << result << std::endl;
 
-
 		pipe_check(result, outfile);
 	} while (calibrate <= 40); //40 c'est magic. sans question!
 	outfile.close();
 
 	return 0;
 }
-
+// il y a se passer un processus
 int pipe_check(DWORD res, std::wofstream& outfile) {
 	//int calibrate = 0;
 	bool bb = false;
