@@ -92,9 +92,6 @@ int main(int argc, char* argv[])
 	//get name fuzzing programm from argv
 	WCHAR* prog_name;// = (WCHAR*)malloc((strlen(argv[1]) + 1) * sizeof(WCHAR));
 
-	
-
-
 	//get environment varible winafl
 	GetEnvironmentVariable(TEXT("AFL_STATIC_CONFIG"), envbuff, env_size);
 	if (GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
