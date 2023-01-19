@@ -27,6 +27,7 @@ TCHAR shm[env_size];
 HANDLE hpipe;
 HANDLE g_hChildStd_OUT_Wr = NULL;
 
+std::wofstream outfile;
 
 TCHAR* GetWC_(const char* c)
 {
@@ -37,32 +38,8 @@ TCHAR* GetWC_(const char* c)
 	return wc;
 }
 
-int pipe_check(DWORD res, std::wofstream& outfile);
-
-int main(int argc, char* argv[])
-{
-	//data for cmdOutput log file
-	SECURITY_ATTRIBUTES sa;
-	sa.nLength = sizeof(sa);
-	sa.lpSecurityDescriptor = NULL;
-	sa.bInheritHandle = TRUE;
-	HANDLE hfile = CreateFile(L"cmdOutput.txt", FILE_APPEND_DATA,
-		FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_ALWAYS, 
-		FILE_ATTRIBUTE_NORMAL, NULL);
-	STARTUPINFO si = { sizeof(si) };
-	g_hChildStd_OUT_Wr = hfile;
-	si.hStdInput = NULL;
-	si.dwFlags |= STARTF_USESTDHANDLES;
-	si.hStdError = g_hChildStd_OUT_Wr;
-	si.hStdOutput = g_hChildStd_OUT_Wr;
-	PROCESS_INFORMATION pi;
-
-	//open file for DumpWinAfl log
-	std::wofstream outfile("testlogfork.txt", std::ios::app);
-
-	//get name fuzzing programm from argv
-	WCHAR* prog_name;// = (WCHAR*)malloc((strlen(argv[1]) + 1) * sizeof(WCHAR));
-	//check if use cmd args
+WCHAR* check_args(int argc, char* argv[]) {
+	WCHAR* prog_name;
 	if (argc == 3) {
 		std::ifstream ifs("OUT\\.cur_input", std::ios::binary);
 		std::string content;
@@ -86,8 +63,37 @@ int main(int argc, char* argv[])
 		prog_name[0] = L'\0';
 		wcscat(prog_name, GetWC_(argv[1]));
 	}
+	return prog_name;
+}
+
+int pipe_check(DWORD res, std::wofstream& outfile);
+
+int main(int argc, char* argv[])
+{
+	//data for cmdOutput log file
+	SECURITY_ATTRIBUTES sa;
+	sa.nLength = sizeof(sa);
+	sa.lpSecurityDescriptor = NULL;
+	sa.bInheritHandle = TRUE;
+	HANDLE hfile = CreateFile(L"cmdOutput.txt", FILE_APPEND_DATA,
+		FILE_SHARE_READ | FILE_SHARE_WRITE, &sa, OPEN_ALWAYS, 
+		FILE_ATTRIBUTE_NORMAL, NULL);
+	STARTUPINFO si = { sizeof(si) };
+	g_hChildStd_OUT_Wr = hfile;
+	si.hStdInput = NULL;
+	si.dwFlags |= STARTF_USESTDHANDLES;
+	si.hStdError = g_hChildStd_OUT_Wr;
+	si.hStdOutput = g_hChildStd_OUT_Wr;
+	PROCESS_INFORMATION pi;
+
+	//open file for DumpWinAfl log
+	outfile.open("testlogfork.txt", std::ios::app);
+
+	//get name fuzzing programm from argv
+	WCHAR* prog_name;// = (WCHAR*)malloc((strlen(argv[1]) + 1) * sizeof(WCHAR));
+
 	
-	outfile << "DumpWinAfl: " << prog_name << " --- " << std::endl;
+
 
 	//get environment varible winafl
 	GetEnvironmentVariable(TEXT("AFL_STATIC_CONFIG"), envbuff, env_size);
@@ -119,7 +125,10 @@ int main(int argc, char* argv[])
 	int calibrate = 0;
 	do {
 		++calibrate;
-		//running fizzing programm
+		//check if use cmd args
+		prog_name = check_args(argc, argv);
+		outfile << "DumpWinAfl: " << prog_name << " --- " << std::endl;
+		//run fizzing programm
 		if (!CreateProcess(NULL, prog_name,
 			NULL, NULL,	TRUE, CREATE_NO_WINDOW, NULL,	NULL, &si, &pi))
 		{
@@ -158,7 +167,7 @@ int pipe_check(DWORD res, std::wofstream& outfile) {
 	bool bb = false;
 	DWORD Dummy;
 	CHAR Command = 0;
-	//do {
+//	do {
 		//++calibrate;
 		if (hpipe == INVALID_HANDLE_VALUE) {
 			printf("winafl pipe not found");
@@ -188,7 +197,11 @@ int pipe_check(DWORD res, std::wofstream& outfile) {
 			outfile.close();
 			return -1;
 		}
-		if (res == 0 || res == 1 || res == 2) {
+#ifndef UEFI
+		if (res == 0) {
+#else
+		if ((res & 0xFF000000) == 0) {
+#endif
 			WriteFile(hpipe, "K", 1, &Dummy, NULL);
 		}
 		else {
