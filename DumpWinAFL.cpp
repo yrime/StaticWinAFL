@@ -52,6 +52,7 @@ WCHAR* check_args(int argc, char* argv[]) {
 		else {
 			outfile << "OUT\\cur_input dont open" << std::endl;
 		}
+		ifs.close();
 		std::string argvstr(argv[1]);
 		std::string reg("OUT\\.cur_input");
 		argvstr.replace(argvstr.find(reg), reg.length(), content);
