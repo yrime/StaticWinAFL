@@ -105,9 +105,9 @@ int main(int argc, char* argv[])
 	GetEnvironmentVariable(TEXT("AFL_STATIC_CONFIG"), envbuff, env_size);
 	if (GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
 		printf("afl env static not found\n");
-		return -2;
+	//	return -2;
 	}
-	//wcscpy_s(envbuff, sizeof(L"2345"), L"2345");
+	wcscpy_s(envbuff, sizeof(L"2345"), L"2345");
 	if (opt.dinamic) {
 		WCHAR * runDyn;
 		WCHAR runCmdDin[500];
@@ -120,9 +120,6 @@ int main(int argc, char* argv[])
 		wcscat_s(runCmdDin, runDyn);
 		wcscat_s(runCmdDin, L"\"");
 		runSubProc(runCmdDin);
-		if (opt.tsleep) {
-			Sleep(opt.tsleep);
-		}
 	}
 
 	outfile << "afl enironment variable: "<<envbuff << std::endl;
