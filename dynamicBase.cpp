@@ -94,7 +94,6 @@ bool runSubProc(WCHAR *argv)
 	}
 	// Wait until child process exits.
 	WaitForSingleObject(pi.hProcess, INFINITE);
-	printf("ggg");
 	// Close process and thread handles. 
 	CloseHandle(pi.hProcess);
 	CloseHandle(pi.hThread);

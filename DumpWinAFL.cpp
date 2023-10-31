@@ -119,9 +119,12 @@ int main(int argc, char* argv[])
 		wcscat_s(runCmdDin, L"&");
 		wcscat_s(runCmdDin, runDyn);
 		wcscat_s(runCmdDin, L"\"");
-		runSubProc(runCmdDin);
-		if (opt.tsleep) {
-			Sleep(opt.tsleep);
+		if (runSubProc(runCmdDin)) {
+			if (opt.tsleep) {
+				outfile << "on sleep " << std::endl;
+				Sleep(opt.tsleep);
+			}
+			outfile << "on run" << std::endl;
 		}
 	}
 
