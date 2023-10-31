@@ -77,7 +77,7 @@ int main(int argc, char* argv[])
 	
 	retOpt(argc, argv);
 
-	std::cout << opt.cmdline << " " << opt.command << " " << opt.dinamic << std::endl;
+	//std::cout << opt.cmdline << " " << opt.command << " " << opt.dinamic << std::endl;
 
 	//data for cmdOutput log file
 	SECURITY_ATTRIBUTES sa;
@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
 		return -2;
 	}
 	//wcscpy_s(envbuff, sizeof(L"2345"), L"2345");
-	if (opt.dinamic) {
+	if (opt.dinamic != NULL) {
 		WCHAR * runDyn;
 		WCHAR runCmdDin[500];
 		std::string argvdin(opt.dinamic);
